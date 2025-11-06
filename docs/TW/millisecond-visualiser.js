@@ -353,19 +353,6 @@ var timeBarWidth = (typeof timeBarWidth !== 'undefined') ? timeBarWidth : false;
             this.oldElement.appendChild(timeGoalInput);
             this.oldElement.appendChild(msGoalInput);
             this.oldElement.appendChild(rememberInput);
-            
-            // Add test button for color change
-            var testButton = document.createElement("div");
-            testButton.innerHTML = "<button id='testColorBtn' style='margin: 5px;'>Test Green Color</button>";
-            this.oldElement.appendChild(testButton);
-            document.getElementById("testColorBtn").addEventListener("click", () => {
-                document.getElementById("bar").style.background = timeColor;
-                console.info("Manually set color to:", timeColor);
-                setTimeout(() => {
-                    document.getElementById("bar").style.background = waitingColor;
-                    console.info("Reset color to:", waitingColor);
-                }, 2000);
-            });
 
             // Add send time element to the command form
             var stuur = document.createElement("tr");

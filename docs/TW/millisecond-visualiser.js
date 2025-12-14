@@ -375,7 +375,7 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
             progressBar.innerHTML = ("<div id='progress_bar'><div id='time'></div><div id='bar'></div></div>");
             timeGoalInput.innerHTML = ("<div width='100%'>snipe time: <input type='datetime-local' max=\"9999-12-31T23:59:59\" id='timegoal' step='1'></div>");
             msGoalInput.innerHTML = ("<div width='100%'>snipe ms: <input type='number' id='msgoal' style='width: 100px;'/></div>");
-            msDelayInput.innerHTML = ("<div width='100%'>delay (subtract): <input type='number' id='msdelay' style='width: 100px;' value='0'/> <span id='effectiveMs' style='color: #666;'></span></div>");
+            msDelayInput.innerHTML = ("<div width='100%'>delay (subtract): <input type='number' id='msdelay' style='width: 100px;' value='0'/> <span id='effectiveMs' style='color: #666;'></span></div><div id='targetInfo' style='color: #333; font-size: 11px; margin-top: 5px;'></div>");
             rememberInput.innerHTML = ("<div width='100%'><label>remember: <input type='checkbox' id='remember'/></label><div id='watermark'>made by Ricardo/Bottenkraker.</div></div>");
 
             this.oldElement.appendChild(progressBar);
@@ -511,9 +511,12 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                 var effectiveMs = (this.msGoal - this.msDelay + 1000) % 1000;
                 
                 // Calculate send time: target arrival time - duration + effective millisecond
-                // This is when we need to click send
+                // timeGoal is at :000 ms (datetime-local doesn't have ms), so we add effectiveMs
+                // This gives us the precise millisecond we need to send at
                 var sendtime = targetServerTime - this.duration + effectiveMs;
                 
+                // Calculate time remaining using accurate milliseconds
+                // We need to compare against the exact ms target
                 // Calculate time remaining until send time (in milliseconds)
                 var timeRemaining = sendtime - currentTimeWithMs;
                 
@@ -551,6 +554,19 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                     bar.style.background = newColor;
                 }
                 
+                // Update target info display with current ms and target ms
+                var targetMsDisplay = sendtime % 1000;
+                var currentMsDisplay = accurateMs;
+                var targetInfoEl = document.getElementById('targetInfo');
+                if (targetInfoEl) {
+                    var remainingSec = Math.floor(timeRemaining / 1000);
+                    var remainingMs = Math.floor(timeRemaining % 1000);
+                    if (remainingMs < 0) remainingMs = 0;
+                    targetInfoEl.innerHTML = 'Target: <b>:' + ('00' + Math.floor(targetMsDisplay)).substr(-3) + '</b> ms | ' +
+                        'Current: <b>:' + ('00' + currentMsDisplay).substr(-3) + '</b> ms | ' +
+                        'Remaining: <b>' + (timeRemaining > 0 ? remainingSec + 's ' + remainingMs + 'ms' : 'NOW!') + '</b>';
+                }
+                
                 // Debug logging once per second
                 if (servertime % 1000 < 50) {
                     console.info("Timing:", {
@@ -558,7 +574,8 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                         targetTime: new Date(sendtime).toLocaleTimeString() + "." + (sendtime % 1000),
                         timeRemaining: timeRemaining,
                         percentage: percentage.toFixed(1) + "%",
-                        color: newColor
+                        color: newColor,
+                        effectiveMs: effectiveMs
                     });
                 }
             } else {

@@ -248,7 +248,8 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                         const sendTime = ($(this).find('td:last span').data('endtime') * 1000) - duration;
                         $(this).append(`<td class="sendTime"><b><span class="timer" style="color: darkblue" data-endtime="${sendTime / 1000}"></span></b></b><br></td>`);
                     });
-                    if (commandsTable.length > 0) $('#remember').closest('div').after(commandsTable);
+                    // Append commands table to the form (after all snipe tool elements)
+                    $(form).append(commandsTable);
                     handleTimers();
                 }
                 if ($('#remember').is(':not(:checked)') && document.referrer.indexOf('arrivalTimestamp') > -1) {
@@ -388,7 +389,7 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
             if (this.timeGoal !== 0) {
                 var sendTime = this.timeGoal - this.duration + this.serverOffset + (timezoneOffsetHours * 60 * 60 * 1000);
                 var sendDate = new Date(sendTime)
-                stuur.innerHTML = ("<td>Timp ramas:</td><td>" + sendDate.toLocaleDateString(undefined, {
+                stuur.innerHTML = ("<td>Ora trimiterii:</td><td>" + sendDate.toLocaleDateString(undefined, {
                     day: 'numeric',
                     month: 'numeric'
                 }) + "&nbsp;" + "<b>" + sendDate.toLocaleTimeString() + "</b>" + "&nbsp;&nbsp;&nbsp;(<span class='timer' id='timer2' data-endtime='" + sendTime / 1000 + "'></span>)</td>");
@@ -400,7 +401,7 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                 });
 
             } else {
-                stuur.innerHTML = ("<td>Stuurtijd:</td><td></td>");
+                stuur.innerHTML = ("<td>Timp ramas:</td><td></td>");
             }
             document.getElementById("command-data-form").getElementsByTagName("table")[0].getElementsByTagName("tbody")[0].appendChild(stuur);
             stuur.id = 'sendtime';
@@ -573,7 +574,7 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
             if (this.timeGoal !== 0 && !isNaN(this.timeGoal)) {
                 var sendTime = this.timeGoal - this.duration + this.serverOffset + (timezoneOffsetHours * 60 * 60 * 1000);
                 var sendDate = new Date(sendTime);
-                stuur.innerHTML = ("<td>Timp ramas:</td><td>" + sendDate.toLocaleDateString(undefined, {
+                stuur.innerHTML = ("<td>Ora trimiterii:</td><td>" + sendDate.toLocaleDateString(undefined, {
                     day: 'numeric',
                     month: 'numeric'
                 }) + "&nbsp;" + "<b>" + sendDate.toLocaleTimeString() + "</b>" + "&nbsp;&nbsp;&nbsp;(<span class='timer' id='timer2' data-endtime='" + sendTime / 1000 + "'></span>)</td>");
@@ -586,7 +587,7 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
 
                 handleTimers();
             } else if (this.timeGoal !== 0 && !isNaN(this.timeGoal)) {
-                stuur.innerHTML = ("<td>Stuurtijd:</td><td></td>");
+                stuur.innerHTML = ("<td>Timp ramas:</td><td></td>");
                 document.title = "No Time Given";
             }
         },

@@ -5,8 +5,8 @@ var timeBarWidth = (typeof timeBarWidth !== 'undefined') ? timeBarWidth : false;
 var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezoneOffsetHours : -2; // Romanian timezone offset
 
 (async () => {
-    // Server millisecond tracking
-    let serverMsZero = null;
+    // Server millisecond tracking using performance.now() for smooth timing
+    let serverMsSyncTime = null;  // performance.now() when server second changed
     let serverMsTimer = null;
 
     function getServerTime() {
@@ -17,9 +17,10 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
     }
 
     function getServerMs() {
-        if (serverMsZero === null) return 0;
-        var currMs = new Date().getMilliseconds();
-        return (1000 + currMs - serverMsZero) % 1000;
+        if (serverMsSyncTime === null) return 0;
+        // Use performance.now() for smooth, monotonic timing
+        var elapsed = performance.now() - serverMsSyncTime;
+        return Math.floor(elapsed % 1000);
     }
 
     function initServerMsTracking() {
@@ -33,7 +34,8 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
         var timer = setInterval(function () {
             serverTime = getServerTime();
             if (serverTime !== prev) {
-                serverMsZero = new Date().getMilliseconds();
+                // Capture the exact moment the server second changed
+                serverMsSyncTime = performance.now();
                 clearInterval(timer);
                 serverMsTimer = setInterval(function () {
                     var ms = getServerMs();
@@ -41,7 +43,7 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                 }, 5);
             }
             prev = serverTime;
-        }, 100);
+        }, 10);  // Poll more frequently for better sync accuracy
     }
 
     // Initialize server ms tracking
@@ -357,9 +359,6 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
         prevTimeGoal: 0,
         duration: 0,
         serverOffset: 0,
-        lastPercentage: 0,
-        lastColor: null,
-        lastTimeRemaining: Infinity,
         init: function () {
             this.sendButton = document.getElementById("troop_confirm_submit");
             this.oldElement = document.getElementById("date_arrival");
@@ -550,25 +549,6 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                     percentage = 0;
                     newColor = waitingColor;
                 }
-                
-                // Prevent backward jumps in progress bar (anti-flicker)
-                // Only allow percentage to decrease if:
-                // 1. Color changed (new phase started)
-                // 2. Time jumped forward significantly (> 500ms, indicating correction)
-                // 3. We're in red (past target, always show 100%)
-                var allowDecrease = (newColor !== this.lastColor) || 
-                                    (this.lastTimeRemaining - timeRemaining > 500) ||
-                                    (newColor === "red");
-                
-                if (!allowDecrease && percentage < this.lastPercentage) {
-                    // Don't allow backward movement within same color phase
-                    percentage = this.lastPercentage;
-                }
-                
-                // Store for next iteration
-                this.lastPercentage = percentage;
-                this.lastColor = newColor;
-                this.lastTimeRemaining = timeRemaining;
                 
                 document.getElementById("bar").style.width = percentage.toString() + "%";
                 

@@ -2,8 +2,50 @@ var timeColor = (typeof timeColor !== 'undefined') ? timeColor : "green";
 var waitingColor = (typeof waitingColor !== 'undefined') ? waitingColor : "#ff9933";
 var noDateColor = (typeof noDateColor !== 'undefined') ? noDateColor : "green";
 var timeBarWidth = (typeof timeBarWidth !== 'undefined') ? timeBarWidth : false;
+var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezoneOffsetHours : -2; // Romanian timezone offset
 
 (async () => {
+    // Server millisecond tracking
+    let serverMsZero = null;
+    let serverMsTimer = null;
+
+    function getServerTime() {
+        var d = $('#serverDate').text(),
+            t = $('#serverTime').text(),
+            m = d.match(/(..)\/(..)\/(....)/);
+        return m[3] + '-' + m[2] + '-' + m[1] + ' ' + t;
+    }
+
+    function getServerMs() {
+        if (serverMsZero === null) return 0;
+        var currMs = new Date().getMilliseconds();
+        return (1000 + currMs - serverMsZero) % 1000;
+    }
+
+    function initServerMsTracking() {
+        if (!$('#serverMs').length) {
+            $('#serverTime').after('<span id="serverMs"></span>');
+        }
+
+        var serverTime = getServerTime(),
+            prev = serverTime;
+
+        var timer = setInterval(function () {
+            serverTime = getServerTime();
+            if (serverTime !== prev) {
+                serverMsZero = new Date().getMilliseconds();
+                clearInterval(timer);
+                serverMsTimer = setInterval(function () {
+                    var ms = getServerMs();
+                    $('#serverMs').text(':' + ('00' + ms).substr(-3));
+                }, 5);
+            }
+            prev = serverTime;
+        }, 100);
+    }
+
+    // Initialize server ms tracking
+    initServerMsTracking();
     if (typeof window.twLib === 'undefined') {
         window.twLib = {
             queues: null,
@@ -357,7 +399,7 @@ var timeBarWidth = (typeof timeBarWidth !== 'undefined') ? timeBarWidth : false;
             // Add send time element to the command form
             var stuur = document.createElement("tr");
             if (this.timeGoal !== 0) {
-                var sendTime = this.timeGoal - this.duration + this.serverOffset;
+                var sendTime = this.timeGoal - this.duration + this.serverOffset + (timezoneOffsetHours * 60 * 60 * 1000);
                 var sendDate = new Date(sendTime)
                 stuur.innerHTML = ("<td>Stuurtijd:</td><td>" + sendDate.toLocaleDateString(undefined, {
                     day: 'numeric',
@@ -442,16 +484,18 @@ var timeBarWidth = (typeof timeBarWidth !== 'undefined') ? timeBarWidth : false;
         },
         updateBar: function () {
             var servertime = Math.round(Timing.getCurrentServerTime());
+            var accurateMs = getServerMs();
 
             /* How far the current ms is to the next goal, with 999ms distance
              * 0%, and 0ms distance being 100%. */
-            var percentage = ((servertime - this.msGoal) % 1000) / 10;
+            var percentage = ((1000 + accurateMs - this.msGoal) % 1000) / 10;
             document.getElementById("bar").style.width = percentage.toString() + "%";
 
-            /* Current TW server Timestamp. */
+            /* Current TW server Timestamp with accurate milliseconds. */
             var element = document.getElementsByClassName("relative_time")[0];
             var timestamp = element.innerHTML.match(/\w+\s+\w+\s+\d+:\d+:\d+/) ?? element.innerHTML.match(/\w+\s+\d+\.\d+\.\s+\w+\s+\d+:\d+:\d+/);
-            document.getElementById("time").innerHTML = timestamp[0].slice(-8);
+            var msString = ('00' + accurateMs).substr(-3);
+            document.getElementById("time").innerHTML = timestamp[0].slice(-8) + '.<span style="font-size:14px;">' + msString + '</span>';
 
             /* Check if the user has given a timestamp. If so, color the bar based on time remaining. */
             if (!isNaN(this.timeGoal) && this.timeGoal !== 0) {
@@ -506,7 +550,7 @@ var timeBarWidth = (typeof timeBarWidth !== 'undefined') ? timeBarWidth : false;
         updateSendtime: function () {
             stuur = document.getElementById("sendtime");
             if (this.timeGoal !== 0 && !isNaN(this.timeGoal)) {
-                var sendTime = this.timeGoal - this.duration + this.serverOffset;
+                var sendTime = this.timeGoal - this.duration + this.serverOffset + (timezoneOffsetHours * 60 * 60 * 1000);
                 var sendDate = new Date(sendTime);
                 stuur.innerHTML = ("<td>Stuurtijd:</td><td>" + sendDate.toLocaleDateString(undefined, {
                     day: 'numeric',
@@ -545,8 +589,9 @@ var timeBarWidth = (typeof timeBarWidth !== 'undefined') ? timeBarWidth : false;
     };
 
     SnipeTool.addGlobalStyle("#progress_bar {width: 100%; height: 20px; background-color: grey;}");
-    SnipeTool.addGlobalStyle("#time {width: 100%; height: 20px; text-align: center; vertical-align: middle; padding-top:3px}");
+    SnipeTool.addGlobalStyle("#time {width: 100%; height: 20px; text-align: center; vertical-align: middle; padding-top:3px; font-weight: bold;}");
     SnipeTool.addGlobalStyle("#bar {width: 0%; background: green; height: 20px; margin-top: -23px;}");
+    SnipeTool.addGlobalStyle("#serverMs {font-size: 10px; color: #666;}");
     SnipeTool.addGlobalStyle("#watermark {font-size: 6px; color: grey; text-align: right; margin-top: -10px;}");
 
 

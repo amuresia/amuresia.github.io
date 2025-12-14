@@ -450,8 +450,8 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
             localStorage.setItem(game_data.world + 'snipesettings', JSON.stringify(this.settings));
         },
         updateEffectiveMs: function () {
-            var effectiveMs = (this.msGoal - this.msDelay + 1000) % 1000;
-            document.getElementById('effectiveMs').innerHTML = '→ effective: <b>' + effectiveMs + '</b> ms';
+            var clickAtMs = (this.msGoal - this.msDelay + 1000) % 1000;
+            document.getElementById('effectiveMs').innerHTML = '→ click at: <b>:' + ('00' + clickAtMs).substr(-3) + '</b>';
         },
         retrieveInput: function () {
             msgoal.addEventListener("input", () => {
@@ -507,13 +507,14 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                 // We need to convert it to server time for comparison
                 var targetServerTime = this.timeGoal - this.serverOffset;
                 
-                // Calculate effective ms (msGoal minus delay)
-                var effectiveMs = (this.msGoal - this.msDelay + 1000) % 1000;
+                // msGoal is the target ARRIVAL millisecond (e.g., 300)
+                // msDelay is the reaction time compensation (e.g., 150)
+                // clickAtMs is when the bar should fill / when you should click (e.g., 150)
+                var clickAtMs = (this.msGoal - this.msDelay + 1000) % 1000;
                 
-                // Calculate send time: target arrival time - duration + effective millisecond
-                // timeGoal is at :000 ms (datetime-local doesn't have ms), so we add effectiveMs
-                // This gives us the precise millisecond we need to send at
-                var sendtime = targetServerTime - this.duration + effectiveMs;
+                // Calculate the exact time when you should CLICK (not when attack arrives)
+                // We use clickAtMs because the bar fills early to compensate for reaction time
+                var sendtime = targetServerTime - this.duration + clickAtMs;
                 
                 // Calculate time remaining using accurate milliseconds
                 // We need to compare against the exact ms target
@@ -555,14 +556,14 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                 }
                 
                 // Update target info display with current ms and target ms
-                // effectiveMs is the actual millisecond we're targeting (msGoal - msDelay)
                 var targetInfoEl = document.getElementById('targetInfo');
                 if (targetInfoEl) {
                     var remainingSec = Math.floor(timeRemaining / 1000);
                     var remainingMs = Math.floor(timeRemaining % 1000);
                     if (remainingMs < 0) remainingMs = 0;
-                    targetInfoEl.innerHTML = 'Target: <b>:' + ('00' + effectiveMs).substr(-3) + '</b> ms | ' +
-                        'Current: <b>:' + ('00' + accurateMs).substr(-3) + '</b> ms | ' +
+                    targetInfoEl.innerHTML = 'Arrival: <b>:' + ('00' + this.msGoal).substr(-3) + '</b> | ' +
+                        'Click at: <b>:' + ('00' + clickAtMs).substr(-3) + '</b> | ' +
+                        'Current: <b>:' + ('00' + accurateMs).substr(-3) + '</b> | ' +
                         'Remaining: <b>' + (timeRemaining > 0 ? remainingSec + 's ' + remainingMs + 'ms' : 'NOW!') + '</b>';
                 }
                 

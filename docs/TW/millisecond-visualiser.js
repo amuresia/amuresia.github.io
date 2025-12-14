@@ -357,6 +357,9 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
         prevTimeGoal: 0,
         duration: 0,
         serverOffset: 0,
+        lastPercentage: 0,
+        lastColor: null,
+        lastTimeRemaining: Infinity,
         init: function () {
             this.sendButton = document.getElementById("troop_confirm_submit");
             this.oldElement = document.getElementById("date_arrival");
@@ -548,6 +551,25 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                     newColor = waitingColor;
                 }
                 
+                // Prevent backward jumps in progress bar (anti-flicker)
+                // Only allow percentage to decrease if:
+                // 1. Color changed (new phase started)
+                // 2. Time jumped forward significantly (> 500ms, indicating correction)
+                // 3. We're in red (past target, always show 100%)
+                var allowDecrease = (newColor !== this.lastColor) || 
+                                    (this.lastTimeRemaining - timeRemaining > 500) ||
+                                    (newColor === "red");
+                
+                if (!allowDecrease && percentage < this.lastPercentage) {
+                    // Don't allow backward movement within same color phase
+                    percentage = this.lastPercentage;
+                }
+                
+                // Store for next iteration
+                this.lastPercentage = percentage;
+                this.lastColor = newColor;
+                this.lastTimeRemaining = timeRemaining;
+                
                 document.getElementById("bar").style.width = percentage.toString() + "%";
                 
                 // Only update color if it actually changed to prevent flickering
@@ -574,8 +596,7 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                         targetTime: new Date(sendtime).toLocaleTimeString() + "." + (sendtime % 1000),
                         timeRemaining: timeRemaining,
                         percentage: percentage.toFixed(1) + "%",
-                        color: newColor,
-                        effectiveMs: effectiveMs
+                        color: newColor
                     });
                 }
             } else {

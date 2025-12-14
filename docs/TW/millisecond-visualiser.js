@@ -204,11 +204,8 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
         init: function () {
             this.loadSettings();
             this.createTable(() => {
-                document.getElementById("remember2").checked = this.remember;
-                document.getElementById("delay").value = parseInt(this.delay);
-                this.retrieveInput();
+                // Commands table loaded
             });
-
         },
         updateSettings: function () {
             if (this.remember) {
@@ -232,14 +229,7 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
             this.delay = this.settings.delay;
         },
         retrieveInput: function () {
-            delay.addEventListener("input", () => {
-                this.delay = parseInt(document.getElementById("delay").value);
-                this.updateSettings();
-            });
-            remember2.addEventListener("input", () => {
-                this.remember = document.getElementById("remember2").checked;
-                this.updateSettings();
-            });
+            // Delay moved to SnipeTool
         },
         createTable: function (_callback) {
             var form = document.getElementById("command-data-form");
@@ -251,18 +241,14 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
 
             $.when(loadRunningCommands(villageUrl).done(function (html) {
                 const commandsTable = $(html).find('.commands-container');
-                var delay = document.createElement("delay");
-                delay.innerHTML = ("<div style='width:100%; height:20px'></div><div width='100%' style='display: none' id='delayBar'>delay: <input type='number' id='delay' style='width: 100px;'/>     remember: <input type='checkbox' id='remember2'/></div>");
-                form.appendChild(delay);
                 if (commandsTable.length > 0) {
-                    $('#delayBar').show();
                     commandsTable.find('tr:first').append('<th>Send in</th>');
                     commandsTable.find('tr.command-row').each(function () {
                         $(this).css('cursor', 'pointer');
                         const sendTime = ($(this).find('td:last span').data('endtime') * 1000) - duration;
                         $(this).append(`<td class="sendTime"><b><span class="timer" style="color: darkblue" data-endtime="${sendTime / 1000}"></span></b></b><br></td>`);
                     });
-                    if (commandsTable.length > 0) $('#remember2').after(commandsTable);
+                    if (commandsTable.length > 0) $('#remember').closest('div').after(commandsTable);
                     handleTimers();
                 }
                 if ($('#remember').is(':not(:checked)') && document.referrer.indexOf('arrivalTimestamp') > -1) {
@@ -338,9 +324,6 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                     date.setMilliseconds(parseInt(ms));
                 }
             }
-
-            // Add delay to milliseconds
-            date.setMilliseconds(date.getMilliseconds() + this.delay);
             
             // Set the inputs
             const finalMs = date.getMilliseconds();
@@ -368,6 +351,7 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
         settings: null,
         remember: false,
         msGoal: 0,
+        msDelay: 0,
         timeGoal: 0,
         prevTimeGoal: 0,
         duration: 0,
@@ -385,15 +369,18 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
             var progressBar = document.createElement("bar");
             var timeGoalInput = document.createElement("timegoal");
             var msGoalInput = document.createElement("msgoal");
+            var msDelayInput = document.createElement("msdelay");
             var rememberInput = document.createElement("remember")
             progressBar.innerHTML = ("<div id='progress_bar'><div id='time'></div><div id='bar'></div></div>");
             timeGoalInput.innerHTML = ("<div width='100%'>snipe time: <input type='datetime-local' max=\"9999-12-31T23:59:59\" id='timegoal' step='1'></div>");
             msGoalInput.innerHTML = ("<div width='100%'>snipe ms: <input type='number' id='msgoal' style='width: 100px;'/></div>");
+            msDelayInput.innerHTML = ("<div width='100%'>delay (subtract): <input type='number' id='msdelay' style='width: 100px;' value='0'/> <span id='effectiveMs' style='color: #666;'></span></div>");
             rememberInput.innerHTML = ("<div width='100%'><label>remember: <input type='checkbox' id='remember'/></label><div id='watermark'>made by Ricardo/Bottenkraker.</div></div>");
 
             this.oldElement.appendChild(progressBar);
             this.oldElement.appendChild(timeGoalInput);
             this.oldElement.appendChild(msGoalInput);
+            this.oldElement.appendChild(msDelayInput);
             this.oldElement.appendChild(rememberInput);
 
             // Add send time element to the command form
@@ -401,7 +388,7 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
             if (this.timeGoal !== 0) {
                 var sendTime = this.timeGoal - this.duration + this.serverOffset + (timezoneOffsetHours * 60 * 60 * 1000);
                 var sendDate = new Date(sendTime)
-                stuur.innerHTML = ("<td>Stuurtijd:</td><td>" + sendDate.toLocaleDateString(undefined, {
+                stuur.innerHTML = ("<td>Timp ramas:</td><td>" + sendDate.toLocaleDateString(undefined, {
                     day: 'numeric',
                     month: 'numeric'
                 }) + "&nbsp;" + "<b>" + sendDate.toLocaleTimeString() + "</b>" + "&nbsp;&nbsp;&nbsp;(<span class='timer' id='timer2' data-endtime='" + sendTime / 1000 + "'></span>)</td>");
@@ -424,6 +411,8 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                 document.getElementById("timegoal").value = msToDatetimeLocal(this.timeGoal);
             }
             document.getElementById("msgoal").value = this.msGoal;
+            document.getElementById("msdelay").value = this.msDelay;
+            this.updateEffectiveMs();
 
             /* NOTE: I think this function sometimes executes before the input
              *       table is made. */
@@ -434,6 +423,7 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
             var settings = JSON.parse(localStorage.getItem(game_data.world + 'snipesettings')) || {};
             if (localStorage.getItem(game_data.world + 'snipesettings') === null) {
                 settings.msGoal = 0;
+                settings.msDelay = 0;
                 settings.timeGoal = 0;
                 settings.remember = false;
                 localStorage.setItem(game_data.world + 'snipesettings', JSON.stringify(settings));
@@ -441,24 +431,38 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
             this.settings = settings;
             this.remember = this.settings.remember;
             this.msGoal = this.settings.msGoal;
+            this.msDelay = this.settings.msDelay || 0;
             this.timeGoal = this.settings.timeGoal;
         },
         updateSettings: function () {
             if (this.remember) {
                 this.settings.msGoal = this.msGoal;
+                this.settings.msDelay = this.msDelay;
                 this.settings.timeGoal = this.timeGoal;
                 this.settings.remember = this.remember;
             } else {
                 this.settings.msGoal = 0;
+                this.settings.msDelay = 0;
                 this.settings.timeGoal = 0;
                 this.settings.remember = false;
             }
             localStorage.setItem(game_data.world + 'snipesettings', JSON.stringify(this.settings));
         },
+        updateEffectiveMs: function () {
+            var effectiveMs = (this.msGoal - this.msDelay + 1000) % 1000;
+            document.getElementById('effectiveMs').innerHTML = '→ effective: <b>' + effectiveMs + '</b> ms';
+        },
         retrieveInput: function () {
             msgoal.addEventListener("input", () => {
                 this.msGoal = parseInt(document.getElementById("msgoal").value) || 0;
                 console.info("MS Goal updated:", this.msGoal);
+                this.updateEffectiveMs();
+                this.updateSettings();
+            });
+            msdelay.addEventListener("input", () => {
+                this.msDelay = parseInt(document.getElementById("msdelay").value) || 0;
+                console.info("MS Delay updated:", this.msDelay);
+                this.updateEffectiveMs();
                 this.updateSettings();
             });
             timegoal.addEventListener("input", () => {
@@ -475,6 +479,7 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                     this.updateSendtime();
                     this.prevTimeGoal = this.timeGoal;
                 }
+                this.updateEffectiveMs();
                 this.updateSettings();
             });
             remember.addEventListener("input", () => {
@@ -485,11 +490,9 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
         updateBar: function () {
             var servertime = Math.round(Timing.getCurrentServerTime());
             var accurateMs = getServerMs();
-
-            /* How far the current ms is to the next goal, with 999ms distance
-             * 0%, and 0ms distance being 100%. */
-            var percentage = ((1000 + accurateMs - this.msGoal) % 1000) / 10;
-            document.getElementById("bar").style.width = percentage.toString() + "%";
+            
+            // Calculate current time with accurate milliseconds
+            var currentTimeWithMs = Math.floor(servertime / 1000) * 1000 + accurateMs;
 
             /* Current TW server Timestamp with accurate milliseconds. */
             var element = document.getElementsByClassName("relative_time")[0];
@@ -503,46 +506,64 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                 // We need to convert it to server time for comparison
                 var targetServerTime = this.timeGoal - this.serverOffset;
                 
-                // Calculate send time by subtracting duration and adding millisecond offset
-                var sendtime = targetServerTime - this.duration + this.msGoal;
+                // Calculate effective ms (msGoal minus delay)
+                var effectiveMs = (this.msGoal - this.msDelay + 1000) % 1000;
                 
-                // Get the current second and target second (ignoring milliseconds)
-                var currentSecond = Math.floor(servertime / 1000);
-                var targetSecond = Math.floor(sendtime / 1000);
+                // Calculate send time: target arrival time - duration + effective millisecond
+                // This is when we need to click send
+                var sendtime = targetServerTime - this.duration + effectiveMs;
+                
+                // Calculate time remaining until send time (in milliseconds)
+                var timeRemaining = sendtime - currentTimeWithMs;
+                
+                // 3-second countdown window (3000ms)
+                var countdownWindow = 3000;
+                
+                var bar = document.getElementById("bar");
+                var newColor;
+                var percentage;
+                
+                if (timeRemaining <= 0) {
+                    // Past the target time - RED, full bar
+                    newColor = "red";
+                    percentage = 100;
+                } else if (timeRemaining <= countdownWindow) {
+                    // Within 3 seconds - GREEN, filling up
+                    // At 3000ms remaining: 0%, at 0ms remaining: 100%
+                    percentage = ((countdownWindow - timeRemaining) / countdownWindow) * 100;
+                    newColor = timeColor;
+                } else if (timeRemaining <= 10000) {
+                    // Within 10 seconds but more than 3 - YELLOW
+                    // Show progress within this window (10s to 3s = 7 seconds)
+                    percentage = ((10000 - timeRemaining) / 7000) * 100;
+                    newColor = "yellow";
+                } else {
+                    // More than 10 seconds away - ORANGE
+                    percentage = 0;
+                    newColor = waitingColor;
+                }
+                
+                document.getElementById("bar").style.width = percentage.toString() + "%";
+                
+                // Only update color if it actually changed to prevent flickering
+                if (bar.style.background !== newColor) {
+                    bar.style.background = newColor;
+                }
                 
                 // Debug logging once per second
                 if (servertime % 1000 < 50) {
                     console.info("Timing:", {
-                        currentTime: new Date(servertime).toLocaleTimeString() + "." + (servertime % 1000),
+                        currentTime: new Date(currentTimeWithMs).toLocaleTimeString() + "." + accurateMs,
                         targetTime: new Date(sendtime).toLocaleTimeString() + "." + (sendtime % 1000),
-                        currentSecond: currentSecond,
-                        targetSecond: targetSecond,
-                        secondsDiff: targetSecond - currentSecond
+                        timeRemaining: timeRemaining,
+                        percentage: percentage.toFixed(1) + "%",
+                        color: newColor
                     });
                 }
-                
-                var newColor;
-                
-                if (currentSecond > targetSecond) {
-                    // Past the target second - RED
-                    newColor = "red";
-                } else if (currentSecond === targetSecond) {
-                    // In the target second - GREEN
-                    newColor = timeColor;
-                } else if (targetSecond - currentSecond < 10) {
-                    // Within 10 seconds before target - YELLOW
-                    newColor = "yellow";
-                } else {
-                    // More than 10 seconds away - ORANGE
-                    newColor = waitingColor;
-                }
-                
-                // Only update if color actually changed to prevent flickering
-                var bar = document.getElementById("bar");
-                if (bar.style.background !== newColor) {
-                    bar.style.background = newColor;
-                }
             } else {
+                // No target set - show ms goal progress (original behavior)
+                var percentage = ((1000 + accurateMs - this.msGoal) % 1000) / 10;
+                document.getElementById("bar").style.width = percentage.toString() + "%";
                 document.getElementById("bar").style.background = noDateColor;
             }
 
@@ -552,7 +573,7 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
             if (this.timeGoal !== 0 && !isNaN(this.timeGoal)) {
                 var sendTime = this.timeGoal - this.duration + this.serverOffset + (timezoneOffsetHours * 60 * 60 * 1000);
                 var sendDate = new Date(sendTime);
-                stuur.innerHTML = ("<td>Stuurtijd:</td><td>" + sendDate.toLocaleDateString(undefined, {
+                stuur.innerHTML = ("<td>Timp ramas:</td><td>" + sendDate.toLocaleDateString(undefined, {
                     day: 'numeric',
                     month: 'numeric'
                 }) + "&nbsp;" + "<b>" + sendDate.toLocaleTimeString() + "</b>" + "&nbsp;&nbsp;&nbsp;(<span class='timer' id='timer2' data-endtime='" + sendTime / 1000 + "'></span>)</td>");

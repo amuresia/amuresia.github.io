@@ -555,15 +555,14 @@ var timezoneOffsetHours = (typeof timezoneOffsetHours !== 'undefined') ? timezon
                 }
                 
                 // Update target info display with current ms and target ms
-                var targetMsDisplay = sendtime % 1000;
-                var currentMsDisplay = accurateMs;
+                // effectiveMs is the actual millisecond we're targeting (msGoal - msDelay)
                 var targetInfoEl = document.getElementById('targetInfo');
                 if (targetInfoEl) {
                     var remainingSec = Math.floor(timeRemaining / 1000);
                     var remainingMs = Math.floor(timeRemaining % 1000);
                     if (remainingMs < 0) remainingMs = 0;
-                    targetInfoEl.innerHTML = 'Target: <b>:' + ('00' + Math.floor(targetMsDisplay)).substr(-3) + '</b> ms | ' +
-                        'Current: <b>:' + ('00' + currentMsDisplay).substr(-3) + '</b> ms | ' +
+                    targetInfoEl.innerHTML = 'Target: <b>:' + ('00' + effectiveMs).substr(-3) + '</b> ms | ' +
+                        'Current: <b>:' + ('00' + accurateMs).substr(-3) + '</b> ms | ' +
                         'Remaining: <b>' + (timeRemaining > 0 ? remainingSec + 's ' + remainingMs + 'ms' : 'NOW!') + '</b>';
                 }
                 

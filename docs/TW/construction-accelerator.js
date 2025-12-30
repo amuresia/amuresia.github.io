@@ -1948,6 +1948,12 @@ window.twSDK = {
         const extraDay = 60 * 60 * 24 * 1000;
         const serverTime = twSDK.getServerDateTimeObject();
 
+        console.log('[DEBUG] Server time:', serverTime, new Date(serverTime));
+        console.log('[DEBUG] Today keyword:', twSDK.tt('today'));
+        console.log('[DEBUG] Tomorrow keyword:', twSDK.tt('tomorrow'));
+        console.log('[DEBUG] Lang today pattern:', window.lang['aea2b0aa9ae1534226518faaefffdaad']);
+        console.log('[DEBUG] Lang tomorrow pattern:', window.lang['57d28d1b211fddbb7a499ead5bf23079']);
+
         let todayPattern = new RegExp(
             window.lang['aea2b0aa9ae1534226518faaefffdaad'].replace(
                 '%s',
@@ -1961,9 +1967,14 @@ window.twSDK = {
             ).replace(/\s+/g, '\\s+')
         );
 
+        console.log('[DEBUG] Today regex pattern:', todayPattern);
+        console.log('[DEBUG] Tomorrow regex pattern:', tomorrowPattern);
+
         let day = new Date().getUTCDate();
         let month = new Date().getUTCMonth() + 1;
         let year = new Date().getUTCFullYear();
+
+        console.log('[DEBUG] Current date:', `${month}/${day}/${year}`);
 
         jQuery('#villages tr.vrow').each(function () {
             const villageId = jQuery(this).attr('id').replace('v_', '');
@@ -1972,37 +1983,67 @@ window.twSDK = {
                 .find('.order_queue #order_0 .queue_icon img')
                 .attr('data-title');
 
+            console.log('[DEBUG] Village:', villageName, 'Construction time raw:', constructionTime);
+
             if (typeof constructionTime !== 'undefined') {
+                const parts = constructionTime.split(' - ');
+                console.log('[DEBUG] Split parts:', parts);
                 villagesData.push({
                     villageId: parseInt(villageId),
                     villageName: villageName,
-                    constructionTime: constructionTime.split(' - ')[1],
-                    building: constructionTime.split(' - ')[0],
+                    constructionTime: parts[1],
+                    building: parts[0],
                 });
             }
         });
 
+        console.log('[DEBUG] Total villages with construction:', villagesData.length);
+
         villagesData = villagesData.map((village) => {
             try {
                 const { constructionTime } = village;
+                console.log('[DEBUG] Processing village:', village.villageName, 'Time:', constructionTime);
+                console.log('[DEBUG] Contains today?', constructionTime.indexOf(twSDK.tt('today')), constructionTime);
+                console.log('[DEBUG] Contains tomorrow?', constructionTime.indexOf(twSDK.tt('tomorrow')), constructionTime);
+                
                 if (constructionTime.indexOf(twSDK.tt('today')) > -1) {
-                    let tempTime = todayPattern.exec(constructionTime)[1];
+                    console.log('[DEBUG] Matching today pattern...');
+                    let match = todayPattern.exec(constructionTime);
+                    console.log('[DEBUG] Today match result:', match);
+                    if (!match || !match[1]) {
+                        console.error('[DEBUG] Failed to extract time from:', constructionTime);
+                        return null;
+                    }
+                    let tempTime = match[1];
+                    console.log('[DEBUG] Extracted time:', tempTime);
                     let timestamp = Date.parse(
                         month + '/' + day + '/' + year + ' ' + tempTime
                     );
+                    console.log('[DEBUG] Parsed timestamp:', timestamp, new Date(timestamp));
                     let remainingTime = (timestamp - serverTime) / 1000;
+                    console.log('[DEBUG] Remaining time (seconds):', remainingTime);
                     return {
                         ...village,
                         date: timestamp,
                         remainingTime: remainingTime,
                     };
                 } else if (constructionTime.indexOf(twSDK.tt('tomorrow')) > -1) {
-                    let tempTime = tomorrowPattern.exec(constructionTime)[1];
+                    console.log('[DEBUG] Matching tomorrow pattern...');
+                    let match = tomorrowPattern.exec(constructionTime);
+                    console.log('[DEBUG] Tomorrow match result:', match);
+                    if (!match || !match[1]) {
+                        console.error('[DEBUG] Failed to extract time from:', constructionTime);
+                        return null;
+                    }
+                    let tempTime = match[1];
+                    console.log('[DEBUG] Extracted time:', tempTime);
                     let timestamp =
                         Date.parse(
                             month + '/' + day + '/' + year + ' ' + tempTime
                         ) + extraDay;
+                    console.log('[DEBUG] Parsed timestamp:', timestamp, new Date(timestamp));
                     let remainingTime = (timestamp - serverTime) / 1000;
+                    console.log('[DEBUG] Remaining time (seconds):', remainingTime);
                     return {
                         ...village,
                         date: timestamp,
@@ -2010,11 +2051,11 @@ window.twSDK = {
                     };
                 } else {
                     // Handle other date formats or return null for filtering
-                    console.debug('[Construction Times] Unhandled date format:', constructionTime, 'for village:', village);
+                    console.debug('[DEBUG] Unhandled date format:', constructionTime, 'for village:', village);
                     return null;
                 }
             } catch (error) {
-                console.error('[Construction Times] Error processing village:', village, error);
+                console.error('[DEBUG] Error processing village:', village, error);
                 return null;
             }
         });
@@ -2022,14 +2063,21 @@ window.twSDK = {
         // Filter out null/undefined values and apply time constraints
         villagesData = villagesData.filter((village) => {
             if (!village) {
+                console.log('[DEBUG] Filtered out null village');
                 return false;
             }
-            const { remainingTime } = village;
+            const { remainingTime, villageName } = village;
+            console.log('[DEBUG] Checking filter for:', villageName, 'Remaining:', remainingTime, 'seconds');
             if (remainingTime > 0 && remainingTime <= 3600) {
+                console.log('[DEBUG] ✓ Passed filter (0 < remaining <= 3600)');
                 return true;
             }
+            console.log('[DEBUG] ✗ Failed filter (remaining not in range)');
             return false;
         });
+
+        console.log('[DEBUG] Final filtered villages count:', villagesData.length);
+        console.log('[DEBUG] Filtered villages:', villagesData);
 
         villagesData.sort(function (left, right) {
             return left.date - right.date;

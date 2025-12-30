@@ -1142,15 +1142,16 @@ window.twSDK = {
         }
 
         let todayPattern = new RegExp(
-            TIME_PATTERNS.today.replace('%s', '([\\d+|:]+)')
+            TIME_PATTERNS.today.replace('%s', '([\\d:]+)').replace(/\s+/g, '\\s+')
         ).exec(timeLand);
         let tomorrowPattern = new RegExp(
-            TIME_PATTERNS.tomorrow.replace('%s', '([\\d+|:]+)')
+            TIME_PATTERNS.tomorrow.replace('%s', '([\\d:]+)').replace(/\s+/g, '\\s+')
         ).exec(timeLand);
         let laterDatePattern = new RegExp(
             TIME_PATTERNS.later
-                .replace('%1', '([\\d+|\\.]+)')
-                .replace('%2', '([\\d+|:]+)')
+                .replace('%1', '([\\d\\.]+)')
+                .replace('%2', '([\\d:]+)')
+                .replace(/\s+/g, '\\s+')
         ).exec(timeLand);
 
         if (todayPattern !== null) {
@@ -1950,14 +1951,14 @@ window.twSDK = {
         let todayPattern = new RegExp(
             window.lang['aea2b0aa9ae1534226518faaefffdaad'].replace(
                 '%s',
-                '([\\d.:]+)'
-            )
+                '([\\d:]+)'
+            ).replace(/\s+/g, '\\s+')
         );
         let tomorrowPattern = new RegExp(
             window.lang['57d28d1b211fddbb7a499ead5bf23079'].replace(
                 '%s',
-                '([\\d.:]+)'
-            )
+                '([\\d:]+)'
+            ).replace(/\s+/g, '\\s+')
         );
 
         let day = new Date().getUTCDate();

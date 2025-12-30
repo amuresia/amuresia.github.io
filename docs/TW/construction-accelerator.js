@@ -1970,9 +1970,11 @@ window.twSDK = {
         console.log('[DEBUG] Today regex pattern:', todayPattern);
         console.log('[DEBUG] Tomorrow regex pattern:', tomorrowPattern);
 
-        let day = new Date().getUTCDate();
-        let month = new Date().getUTCMonth() + 1;
-        let year = new Date().getUTCFullYear();
+        // Use server time to get the correct date (not UTC)
+        const serverDate = new Date(serverTime);
+        let day = serverDate.getDate();
+        let month = serverDate.getMonth() + 1;
+        let year = serverDate.getFullYear();
 
         console.log('[DEBUG] Current date:', `${month}/${day}/${year}`);
 
